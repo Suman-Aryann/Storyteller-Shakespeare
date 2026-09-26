@@ -4,3 +4,5 @@ __pycache__/
 .ipynb_checkpoints/
 datasets/
 checkpoints/
+tempCodeRunnerFile.*
+model_backup.pth
