@@ -1,482 +1,724 @@
-## \--> Storyteller-Shakespeare
+# --> Storyteller-Shakespeare
 
-A GPT-style **decoder-only Transformer language model implemented from scratch using PyTorch** and trained on a Shakespeare text corpus for autoregressive text generation.
+A small GPT-style **character-level Transformer language model** trained
+on Shakespearean text.
 
-The project demonstrates the core components behind GPT-style language models — token embeddings, positional embeddings, causal self-attention, multi-head attention, feed-forward networks, residual connections, layer normalization, next-token prediction, and autoregressive generation — without relying on a pretrained language model.
+This project implements a decoder-only Transformer from scratch using
+PyTorch. The model is trained on a Shakespeare text dataset and can
+generate Shakespeare-style text from a user-provided prompt.
 
-!\[Project Screenshot](Screenshot.png)
+The model was trained using **CUDA on an NVIDIA RTX 3050 Laptop GPU**.
 
-\---
+---
 
-## \--> Project Overview
+## --> Project Overview
 
-**Storyteller-Shakespeare** is a small-scale language model built to understand and demonstrate how a GPT-style Transformer can be implemented and trained from the ground up.
+The goal of this project is to understand and implement the core
+components behind a GPT-style language model rather than simply using a
+pre-trained API.
 
-The model uses **character-level tokenization** and learns to predict the next character from a sequence of previously seen characters.
+The project covers:
 
-After training, the model can take a text prompt such as:
-
-```text
-ROMEO:
-```
-
-and generate a continuation based on patterns learned from the training corpus.
-
-### What this project demonstrates
-
-* Building a GPT-style Transformer from scratch
-* Character-level tokenization
-* Causal / masked self-attention
-* Multi-head attention
+* Character-level tokenization\\
+* Transformer-based language modeling
+* Self-attention and multi-head attention
 * Positional embeddings
-* Transformer residual connections
-* Layer normalization
-* Feed-forward neural networks
+* Decoder-only Transformer blocks
+* Causal masking for autoregressive generation
 * Cross-entropy language-model training
-* AdamW optimization
-* GPU acceleration with CUDA
-* Autoregressive text generation
+* CUDA/GPU acceleration with PyTorch
+* Text generation from user prompts
 * Train/validation loss evaluation
-* Saving and loading PyTorch model checkpoints
 
-\---
+The current model is intentionally small so that it can be trained
+locally on a consumer laptop GPU.
 
-## \--> Model Architecture
+---
 
-The model follows a decoder-only Transformer architecture:
+## --> Model Architecture
 
-```text
-                    Input Text
-                        │
-                        ▼
-               Character Tokenization
-                        │
-                        ▼
-                 Token Embeddings
-                        +
-               Positional Embeddings
-                        │
-                        ▼
-             ┌──────────────────────┐
-             │   Transformer Block  │
-             │                      │
-             │ LayerNorm            │
-             │      ↓               │
-             │ Multi-Head           │
-             │ Self-Attention       │
-             │      ↓               │
-             │ Residual Connection  │
-             │      ↓               │
-             │ LayerNorm            │
-             │      ↓               │
-             │ Feed-Forward Network│
-             │      ↓               │
-             │ Residual Connection  │
-             └──────────────────────┘
-                        │
-                 × 4 Transformer Blocks
-                        │
-                        ▼
-                   Final LayerNorm
-                        │
-                        ▼
-                  Language Model Head
-                        │
-                        ▼
-                 Next-Character Logits
-                        │
-                        ▼
-              Autoregressive Generation
-                        │
-                        ▼
-                  Generated Text
+The model follows a simplified GPT-style decoder-only Transformer
+architecture.
+
+``` text
+Input Text
+    |
+    v
+Character Tokenization
+    |
+    v
+Token Embedding + Position Embedding
+    |
+    v
++-----------------------------+
+| Transformer Block           |
+|                             |
+| Multi-Head Self-Attention   |
+|            |                |
+|      Residual Connection    |
+|            |                |
+| Layer Normalization         |
+|            |                |
+| Feed Forward Network        |
+|            |                |
+|      Residual Connection    |
+|            |                |
+| Layer Normalization         |
++-----------------------------+
+    |
+    v
+Repeated Transformer Blocks
+    |
+    v
+Linear Language Model Head
+    |
+    v
+Next-Character Probabilities
+    |
+    v
+Autoregressive Text Generation
 ```
 
-\---
+The model predicts the next character based on the previous characters
+in the context window.
 
-## \--> Model Configuration
+---
 
-|Parameter|Value|
-|-|-:|
-|Architecture|Decoder-only Transformer|
-|Tokenization|Character-level|
-|Vocabulary size|65 characters|
-|Embedding dimension|128|
-|Transformer layers|4|
-|Attention heads|4|
-|Context length|64 tokens|
-|Dropout|0.2|
-|Total parameters|816,705|
-|Trainable parameters|816,705|
-|Optimizer|AdamW|
-|Learning rate|0.0003|
-|Batch size|32|
-|Training iterations|5,000|
-|Loss function|Cross-Entropy Loss|
-|Training hardware|NVIDIA GeForce RTX 3050 Laptop GPU|
-|GPU acceleration|CUDA|
+## --> Model Configuration
 
-\---
+Parameter                                    Value
 
-## \--> Dataset
+---
 
-The model was trained on a Shakespeare text corpus stored in:
+Architecture              Decoder-only Transformer
+Vocabulary Size                      65 characters
+Embedding Dimension                            128
+Transformer Layers                               4
+Attention Heads                                  4
+Context Length                                  64
+Dropout                                        0.2
+Batch Size                                      32
+Learning Rate                               0.0003
+Optimizer                                    AdamW
+Loss Function                        Cross-Entropy
+Training Iterations                          5,000
+Parameters                                 816,705
+Training Device         NVIDIA RTX 3050 Laptop GPU
+Framework                                  PyTorch
 
-```text
+---
+
+## --> Dataset
+
+The model uses a Shakespeare text corpus stored at:
+
+``` text
 data/input.txt
 ```
 
-### Dataset statistics
+Dataset statistics used during development:
 
-* **Characters:** 1,115,394
-* **Size:** approximately 1.06 MB
-* **Vocabulary:** 65 unique characters
+* Size: approximately **1.06 MB**
+* Characters: approximately **1.1 million**
+* Vocabulary: **65 unique characters**
 
-The dataset is divided into:
+The project uses character-level modeling, meaning the model works
+directly with individual characters rather than words or subword tokens.
 
-```text
-90% → Training data
-10% → Validation data
-```
+---
 
-Character-level tokenization converts each character into an integer token before it is passed to the Transformer.
+## --> Training Pipeline
 
-\---
-
-## \--> Training Pipeline
-
-The training process follows these steps:
-
-```text
-Raw Shakespeare Text
-        ↓
-Character Vocabulary
-        ↓
-Character → Integer Encoding
-        ↓
-Train / Validation Split
-        ↓
-Random Context Windows
-        ↓
-GPT Transformer
-        ↓
-Next-Token Prediction
-        ↓
-Cross-Entropy Loss
-        ↓
+``` text
+Shakespeare Dataset
+        |
+        v
+Build Character Vocabulary
+        |
+        v
+Encode Characters as Integer IDs
+        |
+        v
+Create Training / Validation Splits
+        |
+        v
+Create Random Context Batches
+        |
+        v
+Transformer Forward Pass
+        |
+        v
+Calculate Cross-Entropy Loss
+        |
+        v
 Backpropagation
-        ↓
-AdamW Optimizer
-        ↓
-Updated Model Parameters
+        |
+        v
+AdamW Optimization
+        |
+        v
+Repeat for 5,000 Iterations
+        |
+        v
+Save model.pth
 ```
 
-The training script evaluates training and validation loss periodically during training.
+The training script automatically uses CUDA when it is available.
 
-\---
+---
 
-## \--> Training Results
+## --> Training Results
 
-A fresh 5,000-iteration training run was performed using the NVIDIA RTX 3050 Laptop GPU.
+A fresh 5,000-iteration training run was completed using the NVIDIA RTX
+3050 Laptop GPU.
 
-|Metric|Result|
-|-|-:|
-|Training iterations|5,000|
-|Training time|\~4 min 35 sec|
-|Training loss|**1.6156**|
-|Validation loss|**1.7824**|
-|Device|CUDA|
-|GPU|NVIDIA GeForce RTX 3050 Laptop GPU|
+Metric                               Value
 
-The reported evaluation loss was calculated using random batches from the training and validation splits.
+---
 
-### Baseline checkpoint
+Training Time                \~275 seconds
+Training Time       \~4 minutes 35 seconds
+Training Loss                       1.6156
+Validation Loss                     1.7824
 
-The previously trained checkpoint was also evaluated:
+An earlier checkpoint used during development recorded:
 
-|Metric|Previous checkpoint|
-|-|-:|
-|Training loss|1.6092|
-|Validation loss|1.7700|
+Metric               Value
 
-The small difference between the two runs is expected because the evaluation samples are randomly selected and the model is relatively small.
+---
 
-\---
+Training Loss       1.6092
+Validation Loss     1.7700
 
-## \--> Text Generation
+Loss values can vary between runs because of random initialization,
+batch sampling, and training conditions.
 
-After training, the model can generate text from a user-provided prompt.
+---
+
+## --> Text Generation
+
+After training, the saved model can generate text from a starting
+prompt.
+
+Example prompts tested during development:
+
+``` text
+Once upon a time
+The king entered the castle
+ROMEO:
+HAMLET:
+In the dark forest
+```
+
+The model produces Shakespeare-like vocabulary and dialogue formatting,
+although the current small character-level model can still generate
+malformed words, inconsistent grammar, and less coherent passages.
+
+This is an expected limitation of the current model size and training
+setup.
+
+---
+
+## --> Evaluation
+
+The repository includes:
+
+``` text
+evaluate.py
+```
+
+This script loads the trained checkpoint and evaluates the model using
+the training and validation datasets.
 
 Run:
 
-```bash
-python generate.py
-```
-
-Example:
-
-```text
-Enter Story Prompt:
-ROMEO:
-```
-
-The model then generates new text autoregressively, predicting one character at a time.
-
-### Example generation
-
-```text
-ROMEO:
-Peas is a would the lifer spetcet, be kind them silk.
-
-SOMINIUS:
-
-LEONTES:
-Good strumbled, and good he request of prince and her woen
-Rumbends thee!
-```
-
-The current model captures several Shakespeare-like patterns, including dialogue formatting, character names, punctuation, and vocabulary. Because this is a relatively small character-level model trained for 5,000 iterations, generated text can still contain malformed words and grammatical errors.
-
-\---
-
-## \--> Evaluation
-
-The project includes an evaluation script:
-
-```bash
+``` bash
 python evaluate.py
 ```
 
-It loads the saved model checkpoint and calculates average cross-entropy loss on randomly sampled batches from:
+It automatically uses CUDA when a compatible GPU is available and
+otherwise falls back to CPU.
 
-* Training data
-* Validation data
+---
 
-This provides a quantitative measurement of model performance in addition to qualitative text-generation examples.
+## --> Project Structure
 
-\---
-
-## \--> Project Structure
-
-```text
+``` text
 Storyteller-Shakespeare/
-│
-├── data/
-│   └── input.txt              # Training corpus
-│
-├── model/
-│   └── gpt.py                 # Transformer architecture
-│
-├── train.py                   # Model training pipeline
-├── generate.py                # Text generation
-├── evaluate.py                # Model evaluation
-├── model.pth                  # Trained model checkpoint
-│
-│
-├── Screenshot.png             # Project screenshot
-├── requirements.txt            # Python dependencies
-├── .gitignore
-└── README.md
+|
++-- data/
+|   +-- input.txt
+|
++-- model/
+|   +-- gpt.py
+|
++-- .gitignore
++-- README.md
++-- Screenshot.png
++-- evaluate.py
++-- generate.py
++-- model.pth
++-- requirements.txt
++-- train.py
 ```
 
-\---
+File                 Purpose
 
-## \--> Getting Started
+---
 
-### 1\. Clone the repository
+`train.py`           Trains the Transformer model
+`generate.py`        Generates text from the trained model
+`evaluate.py`        Evaluates training and validation loss
+`model/gpt.py`       Defines the GPT-style Transformer architecture
+`data/input.txt`     Shakespeare training corpus
+`model.pth`          Trained model checkpoint
+`requirements.txt`   Python dependencies
+`Screenshot.png`     Project/output screenshot
+`.gitignore`         Prevents unnecessary local files from being committed
 
-```bash
+---
+
+## --> Getting Started
+
+### --> 1. Clone the repository
+
+``` bash
 git clone https://github.com/Suman-Aryann/Storyteller-Shakespeare-.git
 cd Storyteller-Shakespeare-
 ```
 
-### 2\. Create a virtual environment
+### --> 2. Create a virtual environment
 
-#### Windows
+Windows:
 
-```powershell
+``` bash
 python -m venv venv
-.\\venv\\Scripts\\Activate.ps1
+venv\\\\Scripts\\\\activate
 ```
 
-#### macOS / Linux
+Linux/macOS:
 
-```bash
+``` bash
 python3 -m venv venv
 source venv/bin/activate
 ```
 
-### 3\. Install dependencies
+### --> 3. Install dependencies
 
-```bash
+``` bash
 pip install -r requirements.txt
 ```
 
-> For CUDA-enabled training, install a CUDA-compatible PyTorch build appropriate for your NVIDIA GPU and system. The repository's training code automatically selects CUDA when `torch.cuda.is\_available()` returns `True`.
+---
 
-\---
+## --> Check CUDA
 
-## \--> Generate Text Using the Existing Model
+Verify CUDA availability:
 
-The repository includes a trained checkpoint.
+``` bash
+python -c "import torch; print(torch.cuda.is\\\_available()); print(torch.cuda.get\\\_device\\\_name(0) if torch.cuda.is\\\_available() else 'CPU')"
+```
+
+Expected output on a compatible setup is similar to:
+
+``` text
+True
+NVIDIA GeForce RTX 3050 Laptop GPU
+```
+
+The project was trained successfully on an RTX 3050 Laptop GPU using
+CUDA.
+
+---
+
+## --> Generate Text
 
 Run:
 
-```bash
+``` bash
 python generate.py
 ```
 
-Enter a prompt when requested.
+The generation script loads `model.pth` and generates text using the
+trained Transformer.
 
-Example:
+---
 
-```text
-Enter Story Prompt:
-Once upon a time
-```
-
-\---
-
-## \--> Train the Model
+## --> Train the Model
 
 To train the model from scratch:
 
-```bash
+``` bash
 python train.py
 ```
 
-The script automatically selects:
+Current configuration:
 
-```python
-cuda
+* 5,000 iterations
+* Batch size 32
+* Context length 64
+* Learning rate 0.0003
+* AdamW optimizer
+* CUDA when available
+
+Training time depends on the available hardware.
+
+---
+
+## --> Evaluate the Model
+
+Run:
+
+``` bash
+python evaluate.py
 ```
 
-when CUDA is available; otherwise it falls back to CPU.
+The script reports the model's loss on the training and validation
+datasets.
 
-The training configuration is defined in `train.py` and the model architecture is defined in:
+---
 
-```text
-model/gpt.py
-```
+## --> Hardware Used
 
-After training, the resulting model checkpoint is saved as:
+Component     Specification
 
-```text
+---
+
+CPU           AMD Ryzen 5 5600H
+GPU           NVIDIA RTX 3050 Laptop GPU
+RAM           16 GB
+Framework     PyTorch
+Accelerator   CUDA
+
+The model is compact enough to be trained on a consumer laptop GPU.
+
+---
+
+## --> Technologies Used
+
+* Python
+* PyTorch
+* CUDA
+* Transformer Architecture
+* Multi-Head Self-Attention
+* Deep Learning
+* Character-Level Language Modeling
+* Git
+* GitHub
+
+---
+
+## --> What I Learned
+
+This project was built to understand the internal workflow of a
+GPT-style language model.
+
+Key concepts implemented and explored:
+
+1. Character-level tokenization
+2. Vocabulary creation
+3. Training/validation dataset splitting
+4. Context-window sampling
+5. Token and positional embeddings
+6. Self-attention
+7. Multi-head attention
+8. Causal masking
+9. Feed-forward neural networks
+10. Residual connections
+11. Layer normalization
+12. Transformer blocks
+13. Autoregressive language modeling
+14. Cross-entropy loss
+15. AdamW optimization
+16. GPU-accelerated training
+17. Model checkpointing
+18. Text generation
+19. Validation loss evaluation
+
+---
+
+## --> Limitations
+
+The current model is a small educational implementation rather than a
+production-scale language model.
+
+Current limitations include:
+
+* Small model size
+* Character-level tokenization
+* Short context window
+* Limited training iterations
+* Small training corpus
+* Occasional malformed words
+* Inconsistent grammar
+* Limited long-range context
+* No instruction tuning
+* No modern subword tokenizer
+* No large-scale pretraining
+
+Because of these constraints, the generated text should be viewed as an
+experimental demonstration of Transformer-based language modeling.
+
+---
+
+## --> Future Improvements
+
+Possible improvements include:
+
+### --> Model Improvements
+
+* Increase embedding dimension
+* Increase the number of Transformer layers
+* Increase the number of attention heads
+* Increase context length
+* Train for more iterations
+* Tune learning rate and dropout
+* Use learning-rate scheduling
+
+### --> Tokenization Improvements
+
+* Implement BPE tokenization
+* Experiment with subword tokenization
+* Compare character-level and token-level generation
+
+### --> Dataset Improvements
+
+* Use a larger and cleaner corpus
+* Increase dataset diversity
+* Experiment with additional literary datasets
+
+### --> Generation Improvements
+
+* Add temperature control
+* Add top-k sampling
+* Add top-p / nucleus sampling
+* Add configurable maximum generation length
+* Add an interactive web interface
+
+### --> Engineering Improvements
+
+* Add experiment tracking
+* Add training-loss visualization
+* Add automated evaluation
+* Add model configuration files
+* Add Docker support
+* Deploy an inference API
+
+---
+
+## --> Why a Small GPT Model?
+
+Large language models require substantial computational resources for
+training.
+
+This project focuses instead on understanding the fundamental components
+that make GPT-style models work.
+
+A small model makes it possible to:
+
+* Inspect the architecture
+* Modify the implementation
+* Train locally
+* Experiment with hyperparameters
+* Observe training behavior
+* Understand autoregressive generation
+
+The project therefore serves as a practical implementation of the
+concepts behind decoder-only Transformer language models.
+
+---
+
+## --> Reproducibility
+
+The repository contains the trained checkpoint:
+
+``` text
 model.pth
 ```
 
-\---
+This allows the generation script to be run without retraining the
+model.
 
-## \--> Hardware
+For a fresh experiment:
 
-The model was trained using:
-
-```text
-GPU: NVIDIA GeForce RTX 3050 Laptop GPU
-CUDA: Enabled
+``` bash
+python train.py
+python evaluate.py
+python generate.py
 ```
 
-The complete 5,000-iteration training run took approximately:
+---
 
-```text
-4 minutes 35 seconds
-```
+## --> Project Screenshot
 
-on the development system.
+!\[Project Screenshot](Screenshot.png)
 
-\---
+---
 
-## \--> Tech Stack
+## --> Learning Objective
 
-* **Python**
-* **PyTorch**
-* **CUDA**
-* **NumPy**
-* **Matplotlib**
-* **tqdm**
+The primary objective of this project was to move beyond using pre-built
+language-model APIs and understand the underlying mechanics of a
+GPT-style architecture through implementation.
 
-\---
+The complete workflow is:
 
-## \--> Learning Objectives
-
-This project was developed to gain practical understanding of:
-
-1. Transformer architecture
-2. GPT-style language modeling
-3. Self-attention mechanisms
-4. Causal masking
-5. Token and positional embeddings
-6. Neural language-model training
-7. GPU-accelerated deep learning
-8. Autoregressive text generation
-9. Model evaluation
-10. PyTorch model serialization
-
-\---
-
-## \--> Future Improvements
-
-Potential improvements include:
-
-* Larger model architecture
-* Longer training
-* Improved tokenization such as BPE
-* Larger and more diverse training data
-* Learning-rate scheduling
-* Temperature and top-k/top-p sampling controls
-* Web-based text-generation interface
-* Interactive storytelling interface
-* Training-loss visualization
-* Hugging Face deployment
-
-\---
-
-## \--> Current Limitations
-
-This project intentionally uses a relatively small Transformer architecture and character-level tokenization.
-
-As a result:
-
-* Generated text can contain malformed words
-* Grammar and long-range coherence are limited
-* The model has a small context window
-* Generation quality is significantly below modern pretrained LLMs
-* The model is intended as an educational / experimental implementation rather than a production language model
-
-These limitations are useful for understanding the relationship between model size, training duration, dataset size, and language-generation quality.
-
-\---
-
-## \--> Author
-
-**Suman Aryan**
-
-GitHub:  
-https://github.com/Suman-Aryann
-
-\---
-
-## 📌 Project Summary
-
-**Storyteller-Shakespeare** is a from-scratch implementation of a GPT-style decoder-only Transformer in PyTorch.
-
-The project contains the complete pipeline:
-
-```text
+``` text
 Dataset
-   ↓
+   |
+   v
 Tokenization
-   ↓
-Transformer Architecture
-   ↓
-CUDA Training
-   ↓
-Model Checkpoint
-   ↓
+   |
+   v
+Training Batches
+   |
+   v
+Transformer
+   |
+   v
+Loss Calculation
+   |
+   v
+Backpropagation
+   |
+   v
+GPU Training
+   |
+   v
+Checkpoint
+   |
+   v
 Evaluation
-   ↓
-Autoregressive Text Generation
+   |
+   v
+Text Generation
 ```
 
-The goal of the project is to demonstrate the underlying mechanics of GPT-style language models through an independently implemented and trained neural network rather than relying on a pretrained LLM API.
+---
 
+## --> Author
+
+**Suman Aryann**
+
+B.Tech --- Artificial Intelligence \& Machine Learning
+
+GitHub: https://github.com/Suman-Aryann
+
+---
+
+## --> Project Summary
+
+**Storyteller-Shakespeare** is a compact GPT-style character-level
+language model implemented in PyTorch and trained on Shakespearean text.
+
+The project demonstrates how a decoder-only Transformer can learn
+character-level language patterns and generate new Shakespeare-style
+text from a prompt.
+
+The model contains **816,705 parameters** and was trained for **5,000
+iterations on an NVIDIA RTX 3050 Laptop GPU using CUDA**.
+
+The project is primarily focused on learning, experimentation, and
+demonstrating the fundamentals of Transformer-based language modeling.
+
+ with hyperparameters
+-   Observe training behavior
+-   Understand autoregressive generation
+
+The project therefore serves as a practical implementation of the
+concepts behind decoder-only Transformer language models.
+
+------------------------------------------------------------------------
+
+## --\> Reproducibility
+
+The repository contains the trained checkpoint:
+
+``` text
+model.pth
+```
+
+This allows the generation script to be run without retraining the
+model.
+
+For a fresh experiment:
+
+``` bash
+python train.py
+python evaluate.py
+python generate.py
+```
+
+------------------------------------------------------------------------
+
+## --\> Project Screenshot
+
+![Project Screenshot](Screenshot.png)
+
+------------------------------------------------------------------------
+
+## --\> Learning Objective
+
+The primary objective of this project was to move beyond using pre-built
+language-model APIs and understand the underlying mechanics of a
+GPT-style architecture through implementation.
+
+The complete workflow is:
+
+``` text
+Dataset
+   |
+   v
+Tokenization
+   |
+   v
+Training Batches
+   |
+   v
+Transformer
+   |
+   v
+Loss Calculation
+   |
+   v
+Backpropagation
+   |
+   v
+GPU Training
+   |
+   v
+Checkpoint
+   |
+   v
+Evaluation
+   |
+   v
+Text Generation
+```
+
+------------------------------------------------------------------------
+
+## --\> Author
+
+**Suman Aryann**
+
+B.Tech --- Artificial Intelligence & Machine Learning
+
+GitHub: https://github.com/Suman-Aryann
+
+------------------------------------------------------------------------
+
+## --\> Project Summary
+
+**Storyteller-Shakespeare** is a compact GPT-style character-level
+language model implemented in PyTorch and trained on Shakespearean text.
+
+The project demonstrates how a decoder-only Transformer can learn
+character-level language patterns and generate new Shakespeare-style
+text from a prompt.
+
+The model contains **816,705 parameters** and was trained for **5,000
+iterations on an NVIDIA RTX 3050 Laptop GPU using CUDA**.
+
+The project is primarily focused on learning, experimentation, and
+demonstrating the fundamentals of Transformer-based language modeling.
